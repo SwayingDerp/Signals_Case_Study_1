@@ -118,56 +118,12 @@ end
 text(0.1, 0.2, '↓ Sum all bands → Output y[n]', 'FontSize', 11);
 text(0.1, 0.1, sprintf('Gain range: -15 dB to +15 dB per band'), 'FontSize', 10, 'FontAngle', 'italic');
 
-%% Part 3: Load Sample Audio Files
-
-% Set path to your audio files
-audio_path = 'C:\Users\hazzz\OneDrive\Documents\MATLAB\SignalsHw\CaseStudy1\CS1SampleAudio\';
-
-% List of audio files
-audio_files = {'piano_noisy.wav', 'roosevelt_noisy.wav', 'violin_w_siren.wav'};
-file_names = {'Piano with Noise', 'Roosevelt (Speech)', 'Violin with Siren'};
-
-% Load all audio files
-audio_data = cell(1, 3);
-audio_fs = cell(1, 3);
-audio_duration = zeros(1, 3);
-
-fprintf('=== LOADING AUDIO FILES ===\n');
-for i = 1:3
-    full_path = [audio_path, audio_files{i}];
-    if exist(full_path, 'file')
-        [audio_data{i}, audio_fs{i}] = audioread(full_path);
-        
-        % Convert to mono if stereo
-        if size(audio_data{i}, 2) > 1
-            audio_data{i} = mean(audio_data{i}, 2);
-        end
-        
-        % Store duration
-        audio_duration(i) = length(audio_data{i}) / audio_fs{i};
-        
-        % Normalize
-        audio_data{i} = audio_data{i} / max(abs(audio_data{i}));
-        
-        fprintf('Loaded: %s (fs = %d Hz, duration = %.2f s, samples = %d)\n', ...
-            audio_files{i}, audio_fs{i}, audio_duration(i), length(audio_data{i}));
-    else
-        fprintf('File not found: %s\n', full_path);
-        % Create dummy data if file not found
-        audio_data{i} = 0.3 * sin(2*pi*440*(0:1/fs:5)') + 0.1 * randn(5*fs+1, 1);
-        audio_fs{i} = fs;
-        audio_duration(i) = 5;
-        fprintf('Created test signal for processing\n');
-    end
-end
-fprintf('\n');
-
-%% Part 4: Equalizer Processing Function (Adapted for variable fs)
+%% Part 3: Equalizer Processing Function
 
 % Create a flexible equalizer function that handles different sampling rates
 process_equalizer = @(x, gains_db, current_fs) process_5band_eq_adaptive(x, filters, gains_db, current_fs);
 
-%% Part 5: Test the equalizer with different gain settings
+%% Part 4: Test the equalizer with different gain settings
 
 % Test with a sweep signal to verify equalizer response
 t_test = 0:1/fs:2;  % 2 seconds
@@ -175,19 +131,18 @@ f_sweep = logspace(log10(20), log10(20000), length(t_test));
 x_test = sin(2*pi*cumsum(f_sweep)*dt)';
 
 % Test with different gain settings
-fprintf('=== TESTING EQUALIZER RESPONSE ===\n');
 
-% Case 1: Flat response (all gains 0 dB)
-gains_flat = [0, 0, 0, 0, 0];
-y_flat = process_equalizer(x_test, gains_flat, fs);
+% Case 1: Flat response (all gains 0 dB) - Unity Preset
+gains_unity = [0, 0, 0, 0, 0];
+y_unity = process_equalizer(x_test, gains_unity, fs);
 
-% Case 2: Boost bass and treble, cut mids (smile curve)
-gains_smile = [6, 3, 0, 3, 6];  % dB
-y_smile = process_equalizer(x_test, gains_smile, fs);
+% Case 2: Bass Boost
+gains_bass = [9, 6, 0, 0, 0];  % dB
+y_bass = process_equalizer(x_test, gains_bass, fs);
 
-% Case 3: Boost mids (vocal enhancement)
-gains_vocal = [-6, -3, 6, 3, -3];  % dB
-y_vocal = process_equalizer(x_test, gains_vocal, fs);
+% Case 3: Treble Boost
+gains_treble = [0, 0, 0, 6, 9];  % dB
+y_treble = process_equalizer(x_test, gains_treble, fs);
 
 fprintf('Test signals processed with different EQ settings\n\n');
 
@@ -197,143 +152,35 @@ figure('Position', [100, 650, 1200, 400]);
 % Compute overall frequency response for each gain setting
 H_overall = zeros(3, length(f_axis));
 for i = 1:5
-    H_overall(1,:) = H_overall(1,:) + 10^(gains_flat(i)/20) * H_bands(i,:);
-    H_overall(2,:) = H_overall(2,:) + 10^(gains_smile(i)/20) * H_bands(i,:);
-    H_overall(3,:) = H_overall(3,:) + 10^(gains_vocal(i)/20) * H_bands(i,:);
+    H_overall(1,:) = H_overall(1,:) + 10^(gains_unity(i)/20) * H_bands(i,:);
+    H_overall(2,:) = H_overall(2,:) + 10^(gains_bass(i)/20) * H_bands(i,:);
+    H_overall(3,:) = H_overall(3,:) + 10^(gains_treble(i)/20) * H_bands(i,:);
 end
 
 subplot(1, 3, 1);
 semilogx(f_axis, 20*log10(abs(H_overall(1,:))), 'b', 'LineWidth', 2);
 xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
-title('Flat Response (All Gains 0 dB)');
+title('Unity (Flat Response)');
 grid on; xlim([20, 20000]); ylim([-20, 20]);
 yline(0, 'k--');
 
 subplot(1, 3, 2);
 semilogx(f_axis, 20*log10(abs(H_overall(2,:))), 'r', 'LineWidth', 2);
 xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
-title('Smile Curve EQ');
+title('Bass Boost');
 grid on; xlim([20, 20000]); ylim([-20, 20]);
 yline(0, 'k--');
 
 subplot(1, 3, 3);
 semilogx(f_axis, 20*log10(abs(H_overall(3,:))), 'g', 'LineWidth', 2);
 xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
-title('Vocal Enhancement EQ');
+title('Treble Boost');
 grid on; xlim([20, 20000]); ylim([-20, 20]);
 yline(0, 'k--');
 
 sgtitle('Overall Equalizer Frequency Response with Different Gain Settings');
 
-%% Part 6: Apply Equalizer to Sample Audio Files
-
-% Define EQ settings for enhancement
-fprintf('=== APPLYING EQUALIZER TO AUDIO FILES ===\n');
-
-% EQ Setting 1: Noise reduction (cut extreme lows and highs)
-gains_noise_reduction = [-9, -3, 0, -3, -9];  % dB
-
-% EQ Setting 2: Speech enhancement (boost mid frequencies)
-gains_speech = [-6, 0, 9, 3, -6];  % dB
-
-% EQ Setting 3: Music enhancement (gentle smile curve)
-gains_music = [3, 1, 0, 2, 4];  % dB
-
-% EQ Setting 4: Bird/High-frequency enhancement
-gains_bird = [-3, -1, 2, 6, 9];  % dB
-
-% Process each audio file with different EQ settings
-processed_audio = cell(3, 4);  % 3 files × 4 EQ settings
-eq_names = {'Noise Reduction', 'Speech Enhancement', 'Music Enhancement', 'Bird/High-freq Boost'};
-
-for file_idx = 1:3
-    current_audio = audio_data{file_idx};
-    current_fs = audio_fs{file_idx};
-    
-    fprintf('\nProcessing %s:\n', file_names{file_idx});
-    
-    % Apply different EQ settings
-    processed_audio{file_idx, 1} = process_equalizer(current_audio, gains_noise_reduction, current_fs);
-    processed_audio{file_idx, 2} = process_equalizer(current_audio, gains_speech, current_fs);
-    processed_audio{file_idx, 3} = process_equalizer(current_audio, gains_music, current_fs);
-    processed_audio{file_idx, 4} = process_equalizer(current_audio, gains_bird, current_fs);
-    
-    for eq_idx = 1:4
-        fprintf('  - %s applied\n', eq_names{eq_idx});
-    end
-end
-
-%% Part 7: Visualize Results for Each Audio File
-
-for file_idx = 1:3
-    figure('Position', [100, 100, 1600, 1000]);
-    sgtitle(sprintf('Equalizer Analysis: %s', file_names{file_idx}));
-    
-    current_audio = audio_data{file_idx};
-    current_fs = audio_fs{file_idx};
-    t_audio = (0:length(current_audio)-1)/current_fs;
-    
-    % Limit to first 5 seconds for clarity (or full file if shorter)
-    max_samples = min(5*current_fs, length(current_audio));
-    t_limited = t_audio(1:max_samples);
-    audio_limited = current_audio(1:max_samples);
-    
-    % Plot original
-    subplot(4, 4, 1);
-    plot(t_limited, audio_limited);
-    xlabel('Time (s)'); ylabel('Amplitude');
-    title('Original Waveform');
-    xlim([0, t_limited(end)]); ylim([-1, 1]);
-    grid on;
-    
-    subplot(4, 4, 5);
-    spectrogram(audio_limited, 256, 220, 256, current_fs, 'yaxis');
-    title('Original Spectrogram');
-    caxis([-80, -20]);
-    
-    subplot(4, 4, 9);
-    [pxx, f] = pwelch(audio_limited, [], [], [], current_fs);
-    semilogx(f, 10*log10(pxx));
-    xlabel('Frequency (Hz)'); ylabel('Power/Frequency (dB/Hz)');
-    title('Original Spectrum');
-    xlim([20, 20000]); grid on;
-    
-    subplot(4, 4, 13);
-    axis off;
-    text(0.1, 0.5, sprintf('File: %s\nDuration: %.2f s\nSample Rate: %d Hz', ...
-        audio_files{file_idx}, audio_duration(file_idx), current_fs), ...
-        'FontSize', 11, 'FontWeight', 'bold');
-    
-    % Plot each EQ setting
-    for eq_idx = 1:4
-        proc_audio = processed_audio{file_idx, eq_idx};
-        proc_limited = proc_audio(1:max_samples);
-        
-        % Waveform
-        subplot(4, 4, eq_idx + 1);
-        plot(t_limited, proc_limited);
-        xlabel('Time (s)'); ylabel('Amplitude');
-        title(sprintf('%s', eq_names{eq_idx}));
-        xlim([0, t_limited(end)]); ylim([-1, 1]);
-        grid on;
-        
-        % Spectrogram
-        subplot(4, 4, eq_idx + 5);
-        spectrogram(proc_limited, 256, 220, 256, current_fs, 'yaxis');
-        title(sprintf('%s Spectrogram', eq_names{eq_idx}));
-        caxis([-80, -20]);
-        
-        % Spectrum
-        subplot(4, 4, eq_idx + 9);
-        [pxx_proc, f] = pwelch(proc_limited, [], [], [], current_fs);
-        semilogx(f, 10*log10(pxx_proc));
-        xlabel('Frequency (Hz)'); ylabel('Power/Freq (dB/Hz)');
-        title(sprintf('%s Spectrum', eq_names{eq_idx}));
-        xlim([20, 20000]); grid on;
-    end
-end
-
-%% Part 8: Analysis and Summary
+%% Part 5: Analysis and Summary
 
 fprintf('\n=== EQUALIZER DESIGN SUMMARY ===\n');
 fprintf('Number of bands: 5\n');
@@ -345,19 +192,10 @@ fprintf('Gain range: -15 dB to +15 dB per band\n');
 fprintf('\nEach band implemented as cascaded high-pass and low-pass RC filters:\n');
 fprintf('  High-pass: y[n+1] = (1-α) y[n] + (x[n+1] - x[n])\n');
 fprintf('  Low-pass:  y[n+1] = (1-α) y[n] + α x[n]\n');
-fprintf('\nEQ settings applied:\n');
-for eq_idx = 1:4
-    fprintf('  %d. %s: [', eq_idx, eq_names{eq_idx});
-    if eq_idx == 1
-        fprintf('%.0f, %.0f, %.0f, %.0f, %.0f] dB\n', gains_noise_reduction);
-    elseif eq_idx == 2
-        fprintf('%.0f, %.0f, %.0f, %.0f, %.0f] dB\n', gains_speech);
-    elseif eq_idx == 3
-        fprintf('%.0f, %.0f, %.0f, %.0f, %.0f] dB\n', gains_music);
-    else
-        fprintf('%.0f, %.0f, %.0f, %.0f, %.0f] dB\n', gains_bird);
-    end
-end
+fprintf('\nEQ settings tested:\n');
+fprintf('  1. Unity (Flat): [0, 0, 0, 0, 0] dB\n');
+fprintf('  2. Bass Boost: [9, 6, 0, 0, 0] dB\n');
+fprintf('  3. Treble Boost: [0, 0, 0, 6, 9] dB\n');
 
 %% Helper Function: 5-Band Equalizer (Adaptive for different fs)
 function y = process_5band_eq_adaptive(x, filters, gains_db, current_fs)
