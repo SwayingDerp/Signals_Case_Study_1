@@ -1,6 +1,6 @@
 clear all; close all; clc
 
-%% Part 1: 5-Band Equalizer Design
+%% Task 1: 5-Band Equalizer Design
 fs = 44100; dt = 1/fs;
 center_freqs = [60, 250, 1000, 4000, 16000];
 Q = 1.5; bandwidths = center_freqs / Q;
@@ -10,7 +10,7 @@ R = 1000;
 filters = struct('center', cell(1,5), 'f_low', cell(1,5), 'f_high', cell(1,5), ...
     'alpha_hp', cell(1,5), 'alpha_lp', cell(1,5), 'C_hp', cell(1,5), 'C_lp', cell(1,5));
 
-fprintf('=== 5-BAND EQUALIZER DESIGN ===\nBand\tCenter\tBW\tRange\n');
+fprintf('5-BAND EQUALIZER DESIGN \nBand\tCenter\tBW\tRange\n');
 for i = 1:5
     f_low = max(20, center_freqs(i) - bandwidths(i)/2);
     f_high = min(20000, center_freqs(i) + bandwidths(i)/2);
@@ -29,7 +29,7 @@ for i = 1:5
     filters(i).C_lp = C_lp;
 end
 
-%% Part 2: Frequency Response Analysis
+%% Frequency Response Analysis
 f_axis = logspace(log10(20), log10(20000), 1000);
 H_bands = zeros(5, length(f_axis));
 figure('Position', [100, 100, 1200, 500]);
@@ -65,12 +65,12 @@ subplot(2,3,6); axis off;
 text(0.1,0.9,'EQUALIZER ARCHITECTURE:','FontWeight','bold');
 text(0.1,0.8,'Input x[n] →');
 for i = 1:5
-    text(0.15,0.8-i*0.1, sprintf('├─ Band %d (%.0f Hz) → G%d →', i, center_freqs(i), i));
+    text(0.15,0.8-i*0.1, sprintf('Band %d (%.0f Hz) → G%d →', i, center_freqs(i), i));
 end
 text(0.1,0.2,'Sum → Output y[n]'); 
 text(0.1,0.1,'Gain range: -15 dB to +15 dB per band');
 
-%% Part 3: Equalizer Processing Function
+%% Equalizer Processing Function
 function y = process_eq(x, filters, gains_db, fs)
     % Process input through 5-band equalizer
     % x: input signal
@@ -89,11 +89,12 @@ function y = process_eq(x, filters, gains_db, fs)
         alpha_hp = min(dt / (filters(b).C_hp * 1000), 0.99);
         alpha_lp = min(dt / (filters(b).C_lp * 1000), 0.99);
         
-        % High-pass filter
-        y_hp = zeros(size(x)); 
+       % High-pass filter
+        y_hp = zeros(size(x));
         y_hp(1) = x(1);
+
         for n = 1:length(x)-1
-            y_hp(n+1) = (1 - alpha_hp)*y_hp(n) + (x(n+1) - x(n));
+            y_hp(n+1) = (1 - alpha_hp)*y_hp(n) + alpha_hp*(x(n+1) - x(n));
         end
         
         % Low-pass filter
@@ -112,3 +113,63 @@ function y = process_eq(x, filters, gains_db, fs)
         y = 0.95 * y / max(abs(y));
     end
 end
+
+%% Task 2: Audio Presets
+
+% Gains in dB for each band: [60Hz, 250Hz, 1kHz, 4kHz, 16kHz]
+% Linear: gain = 10^dB/20, gain_linear = db2mag(gain_dB)
+
+% Treble Boost: [0 0 3 6 9];
+preset.treble = [0 0 1.2589 1.9953 2.8184];
+
+% Bass Boost: [9 6 0 -3 -6];
+preset.bass = [2.8184 1.9953 0 0.7079 0.5012];
+
+% Unity: [0 0 0 0 0];
+preset.unity = [1 1 1 1 1];
+
+fprintf('\n Preset Gain Settings (dB)\n');
+fprintf('Treble Boost: [%d %d %d %d %d]\n', preset.treble);
+fprintf('Bass Boost:   [%d %d %d %d %d]\n', preset.bass);
+fprintf('Unity:        [%d %d %d %d %d]\n', preset.unity);
+
+
+
+%% Task 3: Process signals
+% Load Giant Steps audio
+[x_giant, ~] = audioread('Giant Steps Bass Cut.wav');
+
+% Load Space Station audio
+[x_space, fs] = audioread('Space Station - Treble Cut.wav');
+
+% Convert stereo to mono if needed
+if size(x_giant,2) > 1
+    x_giant = mean(x_giant,2);
+end
+
+if size(x_space,2) > 1
+    x_space = mean(x_space,2);
+end
+
+% Apply equalizer presets to Giant Steps
+y_giant_treble = process_eq(x_giant, filters, preset.treble, fs);
+y_giant_bass = process_eq(x_giant, filters, preset.bass, fs);
+y_giant_unity = process_eq(x_giant, filters, preset.unity, fs);
+
+
+% Apply equalizer presets to Space Station
+y_space_treble = process_eq(x_space, filters, preset.treble, fs);
+y_space_bass = process_eq(x_space, filters, preset.bass, fs);
+y_space_unity = process_eq(x_space, filters, preset.unity, fs);
+
+% Save audio
+audiowrite('giant_treble.wav', y_giant_treble, fs);
+audiowrite('giant_bass.wav', y_giant_bass, fs);
+audiowrite('giant_unity.wav', y_giant_unity, fs);
+
+audiowrite('space_treble.wav', y_space_treble, fs);
+audiowrite('space_bass.wav', y_space_bass, fs);
+audiowrite('space_unity.wav', y_space_unity, fs);
+
+fprintf('\nProcessed audio files saved\n');
+
