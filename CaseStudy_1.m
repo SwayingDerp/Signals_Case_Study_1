@@ -70,6 +70,66 @@ end
 text(0.1,0.2,'Sum → Output y[n]'); 
 text(0.1,0.1,'Gain range: -15 dB to +15 dB per band');
 
+f_axis = logspace(log10(20), log10(20000), 1000);
+figure('Position', [100, 100, 1400, 800]);
+for i = 1:5
+    f_low = filters(i).f_low;
+    f_high = filters(i).f_high;
+    % Create continuous-time transfer function
+    % Bandpass = HPF * LPF
+    % HPF: s/(s+ω_low) where ω_low = 2πf_low
+    % LPF: ω_high/(s+ω_high) where ω_high = 2πf_high
+    % Using s-domain representation
+    w_low = 2*pi*f_low;
+    w_high = 2*pi*f_high;
+    % Transfer function: H(s) = [s/(s+w_low)] * [w_high/(s+w_high)]
+    % Multiply out: H(s) = (s*w_high) / (s^2 + (w_low+w_high)s + w_low*w_high)
+    b = [w_high, 0];  % Numerator: s*w_high
+    a = [1, w_low+w_high, w_low*w_high];  % Denominator
+    % Frequency response using freqs (continuous-time)
+    [H, w] = freqs(b, a, 2*pi*f_axis);
+    mag = abs(H);
+    phase = angle(H) * 180/pi;
+    
+    % Plot magnitude
+    subplot(5, 2, 2*i-1);
+    semilogx(f_axis, 20*log10(mag + eps), 'b', 'LineWidth', 2);
+    title(sprintf('Band %d (%.0f Hz) - Magnitude', i, center_freqs(i)));
+    xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
+    grid on; xlim([20, 20000]); ylim([-40, 5]);
+    
+    % Plot phase
+    subplot(5, 2, 2*i);
+    semilogx(f_axis, phase, 'r', 'LineWidth', 2);
+    title(sprintf('Band %d (%.0f Hz) - Phase', i, center_freqs(i)));
+    xlabel('Frequency (Hz)'); ylabel('Phase (degrees)');
+    grid on; xlim([20, 20000]);
+end
+
+% Figure 3: Impulse responses using lsim
+figure('Position', [100, 100, 1200, 600]);
+
+for i = 1:5
+    % Get filter parameters
+    f_low = filters(i).f_low;
+    f_high = filters(i).f_high;
+    w_low = 2*pi*f_low;
+    w_high = 2*pi*f_high;
+    b = [w_high, 0];
+    a = [1, w_low+w_high, w_low*w_high];
+    
+    % Impulse response using lsim
+    t = 0:1/fs:0.01;  % 10ms impulse response
+    impulse = [1; zeros(length(t)-1, 1)];
+    [h, t_out] = lsim(tf(b, a), impulse, t);
+    
+    subplot(2,3,i);
+    plot(t_out*1000, h, 'LineWidth', 2);
+    title(sprintf('Band %d (%.0f Hz) Impulse Response', i, center_freqs(i)));
+    xlabel('Time (ms)'); ylabel('Amplitude');
+    grid on;
+    xlim([0, 10]);
+end
 %% Equalizer Processing Function
 function y = process_eq(x, filters, gains_db, fs)
     % Process input through 5-band equalizer
@@ -172,4 +232,3 @@ audiowrite('space_bass.wav', y_space_bass, fs);
 audiowrite('space_unity.wav', y_space_unity, fs);
 
 fprintf('\nProcessed audio files saved\n');
-
