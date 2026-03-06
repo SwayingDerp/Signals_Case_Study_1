@@ -193,6 +193,60 @@ fprintf('Treble Boost: [%d %d %d %d %d]\n', preset.treble);
 fprintf('Bass Boost:   [%d %d %d %d %d]\n', preset.bass);
 fprintf('Unity:        [%d %d %d %d %d]\n', preset.unity);
 
+presets_db = {
+    'Treble Boost', [0, 0, 3, 6, 9];
+    'Bass Boost',   [9, 6, 0, -3, -6];
+    'Unity',        [0, 0, 0, 0, 0]
+};
+
+f_axis = logspace(log10(20), log10(20000), 1000);
+figure('Position', [100, 100, 1200, 800]);
+
+for p = 1:3
+    preset_name = presets_db{p,1};
+    gains_db = presets_db{p,2};
+    gains_linear = 10.^(gains_db/20);
+    
+    % Calculate total frequency response
+    H_total = zeros(size(f_axis));
+    
+    for b = 1:5
+        % Get band transfer function
+        f_low = filters(b).f_low;
+        f_high = filters(b).f_high;
+        w_low = 2*pi*f_low;
+        w_high = 2*pi*f_high;
+        
+        % Bandpass = HPF * LPF
+        b_coeff = [w_high, 0];
+        a_coeff = [1, w_low+w_high, w_low*w_high];
+        
+        % Get frequency response
+        [H_band, ~] = freqs(b_coeff, a_coeff, 2*pi*f_axis);
+        
+        % Add weighted contribution
+        H_total = H_total + gains_linear(b) * H_band;
+    end
+    
+    % Plot magnitude response
+    subplot(2,2,1);
+    semilogx(f_axis, 20*log10(abs(H_total) + eps), 'LineWidth', 2);
+    hold on;
+    title('Overall Magnitude Response');
+    xlabel('Frequency (Hz)'); ylabel('Magnitude (dB)');
+    grid on; xlim([20, 20000]);
+    
+    % Plot phase response
+    subplot(2,2,2);
+    semilogx(f_axis, unwrap(angle(H_total))*180/pi, 'LineWidth', 2);
+    hold on;
+    title('Overall Phase Response');
+    xlabel('Frequency (Hz)'); ylabel('Phase (degrees)');
+    grid on; xlim([20, 20000]);
+end
+
+subplot(2,2,1); legend('Treble', 'Bass', 'Unity', 'Location', 'best');
+subplot(2,2,2); legend('Treble', 'Bass', 'Unity', 'Location', 'best');
 
 
 %% Task 3: Process signals
@@ -239,21 +293,21 @@ if size(x_bird,2) > 1
     x_bird = mean(x_bird,2);
 end
 
-wind_footstep_leaf = [-20, -18, -12, -9, 0]; 
+wind_footstep_leaf = [-25, -25, -15, -6, 0]; 
 
 
 y_clean = process_eq(x_bird, filters, wind_footstep_leaf, fs_bird);
 y_clean_boosted = y_clean * 3;
 
 fprintf('PLAYING ORIGINAL (with wind, footsteps, leaf rustle)');
-sound(x_bird, fs_bird);
+% sound(x_bird, fs_bird);
 
 
-pause(length(x_bird)/fs_bird + 1);
+% pause(length(x_bird)/fs_bird + 1);
 
 % Play cleaned version
 fprintf('PLAYING CLEANED VERSION (noise reduced)');
-sound(y_clean_boosted, fs_bird);
+ sound(y_clean_boosted, fs_bird);
 
 %% i. & iii. Best spectrogram parameters
 figure('Position', [100, 100, 1400, 600]);
