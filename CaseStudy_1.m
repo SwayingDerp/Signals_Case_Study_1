@@ -309,6 +309,23 @@ fprintf('PLAYING ORIGINAL (with wind, footsteps, leaf rustle)');
 fprintf('PLAYING CLEANED VERSION (noise reduced)');
  sound(y_clean_boosted, fs_bird);
 
+%% ORIGINAL VS PROCESSED SIDE-BY-SIDE
+figure('Position', [100, 100, 1200, 500]);
+
+% Left: Original
+subplot(1,2,1);
+spectrogram(x_bird, 512, 256, 512, fs_bird, 'yaxis');
+title('ORIGINAL - With noise');
+ylim([0, 10]); colorbar;
+xlabel('Time (s)'); ylabel('Frequency (kHz)');
+
+% Right: Processed
+subplot(1,2,2);
+spectrogram(y_clean, 512, 256, 512, fs_bird, 'yaxis');
+title('PROCESSED - Noise reduced');
+ylim([0, 10]); colorbar;
+xlabel('Time (s)'); ylabel('Frequency (kHz)');
+
 %% i. & iii. Best spectrogram parameters
 figure('Position', [100, 100, 1400, 600]);
 
