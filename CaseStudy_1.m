@@ -239,7 +239,7 @@ if size(x_bird,2) > 1
     x_bird = mean(x_bird,2);
 end
 
-wind_footstep_leaf = [-15, -15, -9, -6, 0]; 
+wind_footstep_leaf = [-20, -18, -12, -9, 0]; 
 
 
 y_clean = process_eq(x_bird, filters, wind_footstep_leaf, fs_bird);
@@ -315,3 +315,4 @@ title('Carolina Wren Isolated'); ylim([0,10]);
 subplot(2,2,4);
 spectrogram(y_cardinal(15*fs_bird:25*fs_bird), 512, 256, 512, fs_bird, 'yaxis');
 title('Northern Cardinal Isolated'); ylim([0,10]);
+
