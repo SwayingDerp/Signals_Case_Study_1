@@ -232,3 +232,86 @@ audiowrite('space_bass.wav', y_space_bass, fs);
 audiowrite('space_unity.wav', y_space_unity, fs);
 
 fprintf('\nProcessed audio files saved\n');
+%% Task 4: Bird Vocalization Enhancement
+
+[x_bird, fs_bird] = audioread('SNR Recording 2026-02-15 08_58.wav'); 
+if size(x_bird,2) > 1
+    x_bird = mean(x_bird,2);
+end
+
+wind_footstep_leaf = [-15, -15, -9, -6, 0]; 
+
+
+y_clean = process_eq(x_bird, filters, wind_footstep_leaf, fs_bird);
+y_clean_boosted = y_clean * 3;
+
+fprintf('PLAYING ORIGINAL (with wind, footsteps, leaf rustle)');
+sound(x_bird, fs_bird);
+
+
+pause(length(x_bird)/fs_bird + 1);
+
+% Play cleaned version
+fprintf('PLAYING CLEANED VERSION (noise reduced)');
+sound(y_clean_boosted, fs_bird);
+
+%% i. & iii. Best spectrogram parameters
+figure('Position', [100, 100, 1400, 600]);
+
+% Try different window sizes
+subplot(1,3,1);
+spectrogram(y_clean, 256, 128, 256, fs_bird, 'yaxis');
+title('Window=256 (good time detail)'); ylim([0,10]);
+
+subplot(1,3,2);
+spectrogram(y_clean, 512, 256, 512, fs_bird, 'yaxis');
+title('Window=512 (balanced)'); ylim([0,10]);
+
+subplot(1,3,3);
+spectrogram(y_clean, 1024, 512, 1024, fs_bird, 'yaxis');
+title('Window=1024 (good frequency detail)'); ylim([0,10]);
+sgtitle('Spectrogram Parameter Comparison');
+
+fprintf('\nBest parameters: Window=512, Overlap=256, Freq range 0-10kHz\n');
+
+%% ii. Count distinct vocalizations
+figure;
+spectrogram(y_clean, 512, 256, 512, fs_bird, 'yaxis');
+title('Count Distinct Bird Calls'); ylim([0,10]); colorbar;
+xt = get(gca, 'XTick'); set(gca, 'XTickLabel', xt/60);
+xlabel('Time (minutes)');
+fprintf('\nIsolating specific birds:\n');
+
+% Blue Jay (boost 4kHz)
+bluejay_eq = [-20, -18, -12, +6, +3];
+y_bluejay = process_eq(x_bird, filters, bluejay_eq, fs_bird);
+fprintf('- Blue Jay: Boost 4kHz\n');
+
+% Carolina Wren (boost highs)
+wren_eq = [-20, -18, -6, +9, +6];
+y_wren = process_eq(x_bird, filters, wren_eq, fs_bird);
+fprintf('- Carolina Wren: Boost 4-16kHz\n');
+
+% Northern Cardinal (boost mids)
+cardinal_eq = [-20, -15, +3, +6, 0];
+y_cardinal = process_eq(x_bird, filters, cardinal_eq, fs_bird);
+fprintf('- Northern Cardinal: Boost 1-4kHz\n');
+
+%% Show isolation
+figure('Position', [100, 100, 1400, 800]);
+
+subplot(2,2,1);
+spectrogram(y_clean(25*fs_bird:35*fs_bird), 512, 256, 512, fs_bird, 'yaxis');
+title('Original Cleaned (25-35s)'); ylim([0,10]);
+
+subplot(2,2,2);
+spectrogram(y_bluejay(25*fs_bird:35*fs_bird), 512, 256, 512, fs_bird, 'yaxis');
+title('Blue Jay Isolated'); ylim([0,10]);
+
+subplot(2,2,3);
+spectrogram(y_wren(40*fs_bird:50*fs_bird), 512, 256, 512, fs_bird, 'yaxis');
+title('Carolina Wren Isolated'); ylim([0,10]);
+
+subplot(2,2,4);
+spectrogram(y_cardinal(15*fs_bird:25*fs_bird), 512, 256, 512, fs_bird, 'yaxis');
+title('Northern Cardinal Isolated'); ylim([0,10]);
