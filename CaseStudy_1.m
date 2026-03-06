@@ -300,10 +300,10 @@ y_clean = process_eq(x_bird, filters, wind_footstep_leaf, fs_bird);
 y_clean_boosted = y_clean * 3;
 
 fprintf('PLAYING ORIGINAL (with wind, footsteps, leaf rustle)');
-% sound(x_bird, fs_bird);
+ sound(x_bird, fs_bird);
 
 
-% pause(length(x_bird)/fs_bird + 1);
+ pause(length(x_bird)/fs_bird + 1);
 
 % Play cleaned version
 fprintf('PLAYING CLEANED VERSION (noise reduced)');
